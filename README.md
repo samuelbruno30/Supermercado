@@ -1,62 +1,39 @@
-O sistema utiliza robôs de Web Scraping operando de forma assíncrona e paralela para entregar os melhores preços com geolocalização automática.
+# 🛒 Montador de Lista Inteligente & Comparador de Preços
 
-🚀 Tecnologias Utilizadas
-Front-End: Streamlit (reunindo mapas interativos e gerenciamento de estado de sessão).
+O **Montador de Lista Inteligente** é uma aplicação web robusta desenvolvida em Python com o ecossistema Flask. O principal objetivo do sistema é automatizar a pesquisa de mercado de listas de compras de forma simultânea e em tempo real em grandes redes de supermercados da Grande Vitória (Atacadão, Carrefour e ExtraBom).
 
-Back-End: FastAPI + Uvicorn (API REST de alta performance).
+O projeto foi concebido sob os critérios de avaliação da disciplina de **Programação Web Avançada** da **Universidade Vila Velha (UVV)**.
 
-Paralelismo: ThreadPoolExecutor (Multi-threading nativo para rodar os scrapers simultaneamente).
+---
 
-Automação/Scraping: Selenium WebDriver / Requests.
+## 🚀 Funcionalidades Principais
 
-Geolocalização: HTML5 Geolocation API via JavaScript integrado com Folium.
+* **Busca Paralela de Alta Performance:** Utiliza concorrência nativa em Python (`ThreadPoolExecutor`) para disparar múltiplos Web Scrapers simultaneamente, reduzindo drasticamente o tempo de resposta do usuário.
+* **Algoritmo de Relevância Balanceado:** Blindagem contra falsos negativos através de uma lógica de aproximação por peso de termos, ignorando acentuações e diferenças sutis de escrita nos e-commerces.
+* **Gestor de Orçamento Contextual:** Permite estipular um teto de gastos. O sistema sinaliza visualmente se o total acumulado em determinado mercado ultrapassa ou se encaixa no orçamento disponível.
+* **Cálculo Inteligente do Campeão:** O algoritmo prioriza o estabelecimento que encontrou a maior quantidade de itens da lista do usuário. Em caso de empate na quantidade, o critério de desempate é o menor valor total.
+* **Geolocalização Integrada:** Renderização de um mapa híbrido estilizado do Google Maps via Leaflet.js, plotando as coordenadas reais das unidades físicas mais próximas e a geolocalização em tempo real do usuário.
+* **Exportação para o WhatsApp:** Integração nativa via JavaScript que converte a tabela comparativa de preços em texto formatado para envio instantâneo via WhatsApp API.
 
-🛠️ Como Configurar e Executar o Projeto
-Para rodar este projeto localmente, você precisará ter o Python instalado (versão 3.10 ou superior recomendada).
+---
 
-1. Clonar o Repositório
-Bash
-git clone https://github.com/samuelbruno30/Supermercado.git
-cd Supermercado
-2. Criar e Ativar o Ambiente Virtual (venv)
-No terminal do seu sistema, execute:
+## 📁 Estrutura Estrutural do Projeto
 
-PowerShell
-# Criando a venv
-python -m venv venv
+O projeto adota uma arquitetura modular focada na separação de conceitos de software (Separation of Concerns):
 
-# Ativando no Windows (PowerShell)
-.\venv\Scripts\Activate.ps1
-
-# Ou Ativando no Windows (CMD)
-.\venv\Scripts\activate.bat
-3. Instalar as Dependências Obrigatórias
-Com a venv ativa, instale todos os pacotes necessários rodando o comando abaixo:
-
-Bash
-pip install fastapi uvicorn pydantic selenium requests pandas folium streamlit-folium streamlit-js-eval
-🏃‍♂️ Inicializando o Sistema
-Como o projeto é dividido em duas camadas (Cliente/Servidor), você precisará abrir dois terminais diferentes com a venv ativa para ligar o sistema.
-
-Passo 1: Ligar o Back-End (API)
-No primeiro terminal, execute o servidor Uvicorn:
-
-Bash
-python -m uvicorn app:app --reload
-A API estará rodando no endereço: http://127.0.0.1:8000
-
-Passo 2: Ligar o Front-End (Interface Visual)
-No segundo terminal, inicialize a interface do Streamlit:
-
-Bash
-.\venv\Scripts\streamlit.exe run lista.py
-O navegador abrirá automaticamente a interface do usuário em: http://localhost:8501
-
-💡 Destaques Técnicos do Projeto
-Paralelismo Real (Multi-threads): O backend dispara threads simultâneas para pesquisar os produtos ao mesmo tempo em todos os mercados, reduzindo o tempo total de resposta da consulta.
-
-Resiliência de Interface (st.session_state): Utiliza memória de sessão local para que os dados pesquisados e o mapa não sumam da tela quando o navegador atualizar a geolocalização em segundo plano.
-
-Segurança de Dados: Limpeza de strings e sanitização contra caracteres maliciosos nas requisições da API.
-
-GPS Automático: O sistema solicita permissão de localização ao navegador do usuário para plotar o pino dinamicamente no mapa de rotas ao lado do supermercado campeão de economia.
+```text
+Supermercado/
+├── app/
+│   ├── templates/          # Interfaces em HTML5 estruturadas com Bulma CSS
+│   │   ├── base.html       # Layout base estrutural do sistema
+│   │   ├── index.html      # Tela principal do buscador e resultados
+│   │   └── orcamento.html  # Painel de controle do teto de gastos
+│   ├── __init__.py         # Inicializador e configurador do Application Factory
+│   └── routes.py           # Core do roteamento web, controle de sessões e lógica de negócio
+├── scrapers/               # Módulos isolados de mineração de dados (Web Scraping)
+│   ├── atacadao.py         # Robô automatizado Selenium para a rede Atacadão
+│   ├── carrefur.py         # Robô automatizado Selenium para a rede Carrefour
+│   └── extrabom.py         # Robô automatizado Selenium para a rede ExtraBom
+├── venv/                   # Ambiente virtual com isolamento de dependências
+├── .gitignore              # Filtros de arquivos locais para versionamento via Git
+└── run.py                  # Ponto único de entrada (Single-point entry) do servidor web
