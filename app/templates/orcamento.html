@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="box has-text-centered mb-5" style="border-top: 5px solid #485fc7;">
+    <h1 class="title is-2">💰 Gestor de Orçamento</h1>
+    <p class="subtitle is-5">Define um teto de gastos para a tua lista e evita surpresas no caixa!</p>
+</div>
+
+<div class="columns">
+    <div class="column is-6 is-offset-3">
+        <div class="box">
+            <div class="level mb-5">
+                <div class="level-left">
+                    <h3 class="title is-4">⚙️ Configurar Limite</h3>
+                </div>
+                <div class="level-right">
+                    <a href="{{ url_for('main.index') }}" class="button is-link is-light">← Voltar</a>
+                </div>
+            </div>
+
+            <form action="{{ url_for('main.salvar_orcamento') }}" method="POST">
+                <div class="field">
+                    <label class="label">Qual é o valor máximo que pretendes gastar? (R$):</label>
+                    <div class="control">
+                        <input class="input is-large" type="number" name="limite" step="0.01" min="1" 
+                               value="{{ session.limite_gastos if session.limite_gastos else '100.00' }}" required>
+                    </div>
+                    <p class="help">O sistema usará este valor para validar os totais dos supermercados.</p>
+                </div>
+
+                <button type="submit" class="button is-link is-large is-fullwidth mt-4">💾 Salvar Limite de Gastos</button>
+            </form>
+            
+            {% if session.limite_gastos %}
+                <div class="notification is-info is-light has-text-centered mt-4">
+                    📢 O teu limite atual está configurado para: <strong>R$ {{ "%.2f"|format(session.limite_gastos) }}</strong>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

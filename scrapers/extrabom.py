@@ -44,43 +44,55 @@ def buscar(produto):
     try:
         # Acessa a página principal para validar sessão e cookies legítimos
         driver.get("https://www.extrabom.com.br/")
-        time.sleep(2)
+        time.sleep(1)
 
         # Executa a busca real
         url_busca = f"https://www.extrabom.com.br/busca/?q={produto_url}"
         driver.get(url_busca)
 
-        # Aguarda a estrutura da página ser injetada no navegador
-        WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "body"))
-        )
+        # BLINDAGEM: Aguarda os itens com preço realmente aparecerem na tela
+        try:
+            WebDriverWait(driver, 8).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, "[data-price]"))
+            )
+        except TimeoutException:
+            # Se não achar os blocos por atributo, aguarda o corpo padrão
+            WebDriverWait(driver, 5).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, "body"))
+            )
         
-        time.sleep(2) # Tempo seguro para garantia de carregamento dos scripts internos
         soup = BeautifulSoup(driver.page_source, "html.parser")
 
         # =========================================================================
         # ESTRATÉGIA SUPREMA: Capturar chaves por Atributos de Dados (data-price / data-name)
         # =========================================================================
-        # O BeautifulSoup vai varrer a página inteira atrás de qualquer tag que possua o atributo 'data-price'
         blocos_produtos = soup.find_all(attrs={"data-price": True})
 
         for bloco in blocos_produtos:
             try:
-                # Pega os metadados puros direto da raiz estrutural do HTML
                 nome = bloco.get("data-name", "").strip()
                 preco_raw = bloco.get("data-price", "").strip()
 
                 if not nome or not preco_raw:
                     continue
 
-                # Validação de palavras-chave ignorando acentuação
+                # Normalização para comparação de palavras
                 nome_sem_acento = remover_acentos(nome.lower())
-                produto_palavras = remover_acentos(produto_original).split()
+                produto_palavras = produto_busca.split()
 
-                if not all(palavra in nome_sem_acento for palavra in produto_palavras):
+                # BLINDAGEM CONTRA FALSO NEGATIVO (Validação flexível por relevância de palavras)
+                # Conta quantas palavras digitadas pelo usuário batem com o título do site
+                palavras_batidas = sum(1 for palavra in produto_palavras if palavra in nome_sem_acento)
+                
+                # Se não bater quase nenhuma palavra principal, descarta (evita trazer itens aleatórios)
+                if palavras_batidas == 0:
+                    continue
+                
+                # Se o usuário digitou mais de uma palavra (ex: "feijao preto"), exige que pelo menos
+                # metade das palavras digitadas existam no produto real encontrado
+                if len(produto_palavras) > 1 and palavras_batidas < (len(produto_palavras) / 2):
                     continue
 
-                # Conversão direta (o atributo já vem padronizado em formato americano ex: "16.49")
                 preco_numero = float(preco_raw)
 
                 lista_produtos.append({
@@ -92,7 +104,7 @@ def buscar(produto):
                 pass
 
         # =========================================================================
-        # CASO DE CONTINGÊNCIA: Se cair na página única e o bloco pai não tiver os atributos
+        # CASO DE CONTINGÊNCIA: Se cair na página única de um produto específico
         # =========================================================================
         if not lista_produtos:
             tag_nome_direto = soup.find(class_="nome-produto")
@@ -109,14 +121,13 @@ def buscar(produto):
                     preco_numero = float(preco_limpo.replace("R$", "").replace(".", "").replace(",", ".").strip())
 
                     nome_sem_acento = remover_acentos(nome.lower())
-                    produto_palavras = remover_acentos(produto_original).split()
+                    produto_palavras = produto_busca.split()
 
-                    if all(palavra in nome_sem_acento for palavra in produto_palavras):
+                    palavras_batidas = sum(1 for palavra in produto_palavras if palavra in nome_sem_acento)
+                    if palavras_batidas > 0:
                         driver.quit()
                         return {"mercado": "ExtraBom", "nome": nome, "preco": preco_numero}
 
-    except TimeoutException:
-        pass
     except Exception:
         pass
     finally:
@@ -129,4 +140,5 @@ def buscar(produto):
     if not lista_produtos:
         return None
 
+    # Retorna o mais barato dentre os que passaram no filtro de relevância
     return min(lista_produtos, key=lambda x: x["preco"])

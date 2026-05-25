@@ -1,0 +1,217 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="columns">
+    <div class="column is-3">
+        <div class="box" style="height: 100%;">
+            <h3 class="title is-5">⏱️ Pesquisas Recentes</h3>
+            {% if session.historico %}
+                <div class="buttons">
+                    {% for busca in session.historico %}
+                        <a href="{{ url_for('main.index', repesquisar=busca) }}" class="button is-small is-fullwidth is-light is-link" style="justify-content: flex-start; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">
+                            🔍 {{ busca }}
+                        </a>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="is-size-7 has-text-grey">Nenhuma busca recente realizada ainda.</p>
+            {% endif %}
+            
+            <hr>
+            <h3 class="title is-5">⚙️ Sistema</h3>
+            <a href="{{ url_for('main.orcamento') }}" class="button is-dark is-fullwidth mb-2">
+                💰 Limite de Orçamento
+            </a>
+            <a href="{{ url_for('main.index') }}" class="button is-link is-light is-fullwidth">
+                🔄 Limpar Busca
+            </a>
+        </div>
+    </div>
+
+    <div class="column is-9">
+        <div class="box has-text-centered mb-4" style="border-top: 5px solid #485fc7;">
+            <h1 class="title is-2">🛒 Montador de Lista Inteligente</h1>
+            <p class="subtitle is-5">Projeto de Programação WEB Avançada — UVV</p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="notification is-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="box">
+            <form method="POST" id="form_busca" onsubmit="ativarLoading()">
+                <div class="field">
+                    <label class="label is-size-5">Digite os itens da sua lista (separados por vírgula):</label>
+                    <div class="control">
+                        <input class="input is-large" type="text" name="produtos" id="input_produtos" value="{{ produtos_inseridos if produtos_inseridos else '' }}" placeholder="Ex: Arroz, Feijão, Café">
+                    </div>
+                </div>
+                <button type="submit" id="btn_buscar" class="button is-link is-large is-fullwidth">⚡ Compare os Preços</button>
+            </form>
+        </div>
+
+        {% if dados %}
+            <div class="notification is-success is-light has-text-centered mb-5">
+                <h3 class="is-size-3">🏆 Supermercado Escolhido: <strong id="txt_campeao">{{ dados.campeao_economia }}</strong></h3>
+            </div>
+
+            <div class="columns mb-5">
+                {% for mercado, info in dados.resumo_mercados.items() %}
+                <div class="column">
+                    <div class="card has-background-white" style="border-radius: 8px;">
+                        <header class="card-header" style="background-color: #f5f5f5;">
+                            <p class="card-header-title is-centered is-size-5">{{ mercado }}</p>
+                        </header>
+                        <div class="card-content has-text-centered">
+                            <p class="title is-3 has-text-link">R$ {{ info.total_acumulado }}</p>
+                            <p class="subtitle is-6">Produtos: <span class="tag is-info is-light">{{ info.itens_encontrados }}</span></p>
+                            
+                            {% if session.limite_gastos and session.limite_gastos > 0 %}
+                                <hr style="margin: 10px 0;">
+                                {% if info.total_acumulado > session.limite_gastos %}
+                                    {% set estouro = info.total_acumulado - session.limite_gastos %}
+                                    <span class="tag is-danger is-light" style="white-space: normal; height: auto; padding: 5px;">
+                                        ⚠️ Estoura em R$ {{ "%.2f"|format(estouro) }}
+                                    </span>
+                                {% else %}
+                                    {% set sobra = session.limite_gastos - info.total_acumulado %}
+                                    <span class="tag is-success is-light" style="white-space: normal; height: auto; padding: 5px;">
+                                        ✅ Sobra R$ {{ "%.2f"|format(sobra) }}
+                                    </span>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="box">
+                <h3 class="title is-4 mb-4">📊 Detalhes por Item</h3>
+                <table class="table is-striped is-fullwidth is-hoverable" id="tabela_produtos">
+                    <thead>
+                        <tr style="background-color: #eaeffa;">
+                            <th>Produto Solicitado</th>
+                            <th>Atacadão</th>
+                            <th>Carrefour</th>
+                            <th>ExtraBom</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in dados.detalhe_produtos %}
+                        <tr class="linha-item-produto" data-solicitado="{{ item.produto_solicitado.capitalize() }}">
+                            <td><strong>{{ item.produto_solicitado.capitalize() }}</strong></td>
+                            {% for m in ['Atacadão', 'Carrefour', 'ExtraBom'] %}
+                                <td {% if item.mercados[m] and item.mercados[m].preco == item.menor_preco %}class="has-background-success-light" style="border-left: 3px solid #48c78e;"{% endif %}
+                                    data-mercado-nome="{{ m }}"
+                                    data-info-texto="{% if item.mercados[m] %}{% if item.mercados[m].erro %}Indisponível{% else %}{{ item.mercados[m].nome_real }} (R$ {{ '%.2f'|format(item.mercados[m].preco) }}){% endif %}{% else %}Não encontrado{% endif %}">
+                                    
+                                    {% if item.mercados[m] %}
+                                        {% if item.mercados[m].erro %}
+                                            <span class="tag is-warning">⚠️ Indisponível</span>
+                                        {% else %}
+                                            <span class="is-size-7 has-text-grey">{{ item.mercados[m].nome_real }}</span><br>
+                                            
+                                            {% if item.mercados[m].preco == item.menor_preco %}
+                                                <span class="tag is-success"><strong>R$ {{ "%.2f"|format(item.mercados[m].preco) }} 🏆</strong></span>
+                                            {% else %}
+                                                <strong>R$ {{ "%.2f"|format(item.mercados[m].preco) }}</strong>
+                                            {% endif %}
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="tag is-danger is-light">❌ Não encontrado</span>
+                                    {% endif %}
+                                </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <div class="has-text-right mt-4">
+                    <button class="button is-success is-medium" onclick="exportarParaWhatsApp()">
+                        <span class="icon">🚀</span>
+                        <strong>Compartilhar no WhatsApp</strong>
+                    </button>
+                </div>
+            </div>
+
+            <div class="box">
+                <h3 class="title is-4 mb-3">📍 Localizações Próximas na Grande Vitória</h3>
+                <div id="mapa_uvv" style="height: 450px; border-radius: 8px;"></div>
+            </div>
+
+            <script>
+                var mapa = L.map('mapa_uvv').setView([-20.3200, -40.3050], 12);
+                L.tileLayer('http://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+                    maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'], attribution: '© Google Maps'
+                }).addTo(mapa);
+
+                var lojas = { "Atacadão": [-20.3570, -40.3352], "Carrefour": [-20.3283, -40.2936], "ExtraBom": [-20.3118, -40.3009] };
+                for (var nome in lojas) {
+                    L.marker(lojas[nome]).addTo(mapa).bindPopup(`<b>🏬 ${nome}</b>`);
+                }
+
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(function(position) {
+                        var lat = position.coords.latitude;
+                        var lon = position.coords.longitude;
+                        mapa.flyTo([lat, lon], 14, { animate: true, duration: 2 });
+                        L.marker([lat, lon], {icon: L.icon({
+                            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+                            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                            iconSize: [25, 41], iconAnchor: [12, 41]
+                        })}).addTo(mapa).bindPopup("<b>Você está aqui!</b>").openPopup();
+                    });
+                }
+            </script>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function exportarParaWhatsApp() {
+    var campeaoText = document.getElementById("txt_campeao").innerText;
+    
+    // Início da mensagem formatada em Markdown do WhatsApp
+    var textoMsg = "🛒 *MINHA LISTA INTELIGENTE DE COMPRAS* \n";
+    textoMsg += "🏆 *Resultado:* " + campeaoText + "\n\n";
+    textoMsg += "---------------------------------------\n";
+
+    // Captura cada linha de produto cadastrada na tabela
+    var linhas = document.querySelectorAll(".linha-item-produto");
+    
+    linhas.forEach(function(linha) {
+        var produtoNome = linha.getAttribute("data-solicitado");
+        textoMsg += "📦 *Item: " + produtoNome + "*\n";
+        
+        var celulasMercado = linha.querySelectorAll("td[data-mercado-nome]");
+        celulasMercado.forEach(function(celula) {
+            var mercNome = celula.getAttribute("data-mercado-nome");
+            var mercInfo = celula.getAttribute("data-info-texto");
+            textoMsg += "   🔹 " + mercNome + ": " + mercInfo + "\n";
+        });
+        textoMsg += "\n";
+    });
+
+    textoMsg += "---------------------------------------\n";
+    textoMsg += "💡 *Gerado pelo Comparador de Preços Inteligente — UVV*";
+
+    // Codifica o texto para o formato de URL do WhatsApp
+    var urlWhatsapp = "https://api.whatsapp.com/send?text=" + encodeURIComponent(textoMsg);
+    
+    // Abre em uma nova aba do navegador (funciona no PC e Celular)
+    window.open(urlWhatsapp, '_blank');
+}
+
+function activarLoading() {
+    var btn = document.getElementById('btn_buscar');
+    btn.classList.add('is-loading');
+    btn.innerText = "Buscando nos Supermercados...";
+}
+</script>
+{% endblock %}

@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="box has-text-centered mb-5" style="border-top: 5px solid #485fc7;">
+    <h1 class="title is-2">📊 Meu Painel de Economia</h1>
+    <p class="subtitle is-5">Histórico de Listas Salvas e Economia Acumulada</p>
+</div>
+
+<div class="columns">
+    <div class="column is-12">
+        <div class="box">
+            <div class="level mb-5">
+                <div class="level-left">
+                    <h3 class="title is-4">🛒 Suas Compras Simuladas</h3>
+                </div>
+                <div class="level-right">
+                    <a href="{{ url_for('main.index') }}" class="button is-link">← Voltar para o Buscador</a>
+                </div>
+            </div>
+
+            <div class="columns mb-5">
+                <div class="column">
+                    <div class="notification is-primary is-light has-text-centered">
+                        <p class="heading">Total de Listas Salvas</p>
+                        <p class="title is-3">{{ session.compras_salvas|length if session.compras_salvas else 0 }}</p>
+                    </div>
+                </div>
+                <div class="column">
+                    <div class="notification is-success is-light has-text-centered">
+                        <p class="heading">Economia Total Estimada</p>
+                        <p class="title is-3">R$ {{ "%.2f"|format(session.economia_total if session.economia_total else 0.0) }}</p>
+                    </div>
+                </div>
+            </div>
+
+            {% if session.compras_salvas %}
+                <table class="table is-striped is-fullwidth is-hoverable">
+                    <thead>
+                        <tr style="background-color: #eaeffa;">
+                            <th>Data/Hora</th>
+                            <th>Produtos Inseridos</th>
+                            <th>Mercado Escolhido</th>
+                            <th>Valor Pago</th>
+                            <th>Economia Gerada</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for compra in session.compras_salvas %}
+                        <tr>
+                            <td>{{ compra.data }}</td>
+                            <td><span class="tag is-light is-info">{{ compra.itens }}</span></td>
+                            <td><strong>{{ compra.mercado }}</strong></td>
+                            <td class="has-text-link"><strong>R$ {{ "%.2f"|format(compra.valor) }}</strong></td>
+                            <td class="has-text-success"><strong>+ R$ {{ "%.2f"|format(compra.economia) }} 🚀</strong></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                
+                <div class="has-text-centered mt-4">
+                    <a href="{{ url_for('main.limpar_historico_compras') }}" class="button is-danger is-light is-small">🗑️ Zerar Histórico de Economia</a>
+                </div>
+            {% else %}
+                <div class="notification is-warning is-light has-text-centered">
+                    Nenhuma lista foi salva no painel ainda. Crie uma lista na tela inicial e clique em "Salvar Compra".
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

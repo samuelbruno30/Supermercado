@@ -20,7 +20,6 @@ def buscar(produto):
     produto_url = quote(produto_busca)
 
     options = Options()
-    # Usa o modo headless moderno para evitar travar em páginas dinâmicas
     options.add_argument("--headless=new") 
     options.add_argument("--window-size=1920,1080")
     
@@ -34,7 +33,6 @@ def buscar(produto):
 
     driver = webdriver.Chrome(options=options)
     
-    # Esconde a propriedade 'navigator.webdriver'
     driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
         "source": "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
     })
@@ -63,20 +61,30 @@ def buscar(produto):
             nome_sem_acento = remover_acentos(nome_produto.lower())
             produto_palavras = produto_busca.split()
             
-            # CORRIGIDO: "for palavra" escrito corretamente com "v"
-            # Essa lógica aceita o produto se contiver as palavras buscadas OU se for um sinônimo (biscoito/bolacha)
-            if not any(palavra in nome_sem_acento for palavra in produto_palavras):
-                if "bolacha" not in nome_sem_acento and "biscoito" in produto_palavras:
+            # BLINDAGEM DA RELEVÂNCIA: Nem tanto ao mar (any), nem tanto à terra (all)
+            palavras_batidas = sum(1 for palavra in produto_palavras if palavra in nome_sem_acento)
+            
+            # Tratamento especial para o sinônimo que você criou de biscoito/bolacha
+            if palavras_batidas == 0:
+                if "biscoito" in produto_palavras and "bolacha" in nome_sem_acento:
+                    palavras_batidas = 1
+                else:
                     continue
+            
+            # Para buscas compostas (ex: "feijao preto"), exige que pelo menos metade das palavras bata
+            if len(produto_palavras) > 1 and palavras_batidas < (len(produto_palavras) / 2):
+                continue
 
-            # Navega nos elementos pais para isolar o preço do card correto
+            # Isolamento seguro do preço dentro do Card do Produto
             card = h3.parent
             precos_no_card = []
             
-            for _ in range(5): 
-                if card is None or card.name == 'body':
+            # Sobe no máximo 4 níveis, garantindo que não saia do container do produto específico
+            for _ in range(4): 
+                if card is None or card.name in ['body', 'html']:
                     break
                 
+                # Se encontrarmos uma classe comum de grid/box de produto, inspecionamos ela
                 texto_card = card.get_text(" ", strip=True)
                 precos_no_card = re.findall(r'R\$\s*\d+[.,]\d{2}', texto_card)
                 
@@ -85,6 +93,7 @@ def buscar(produto):
                 card = card.parent
 
             if precos_no_card:
+                # Pega o último preço encontrado (evita valor antigo atacado/varejo invertido)
                 preco_texto = precos_no_card[-1]
                 preco_numero = float(
                     preco_texto
@@ -105,7 +114,12 @@ def buscar(produto):
     finally:
         driver.quit()
 
+    # Garante a unicidade dos itens capturados
+    unicos = {item["nome"]: item for item in lista_produtos}.values()
+    lista_produtos = list(unicos)
+
     if not lista_produtos:
         return None
 
+    # Retorna o menor preço da lista filtrada por relevância pura
     return min(lista_produtos, key=lambda x: x["preco"])
