@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="columns is-centered mt-5">
+    <div class="column is-4">
+        <div class="box" style="border-top: 5px solid #485fc7;">
+            <h1 class="title has-text-centered">🔐 Iniciar Sessão</h1>
+            
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="notification is-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form method="POST">
+                {{ form.hidden_tag() }}
+                
+                <div class="field">
+                    <label class="label">E-mail</label>
+                    <div class="control">
+                        {{ form.email(class="input", placeholder="O teu e-mail") }}
+                    </div>
+                    {% for error in form.email.errors %} <p class="help is-danger">{{ error }}</p> {% endfor %}
+                </div>
+
+                <div class="field">
+                    <label class="label">Palavra-passe (Senha)</label>
+                    <div class="control">
+                        {{ form.senha(class="input", placeholder="A tua senha secreta") }}
+                    </div>
+                    {% for error in form.senha.errors %} <p class="help is-danger">{{ error }}</p> {% endfor %}
+                </div>
+
+                <div class="control mt-5">
+                    {{ form.submit(class="button is-link is-fullwidth is-medium") }}
+                </div>
+            </form>
+            
+            <div class="has-text-centered mt-4">
+                <p>Ainda não tens conta? <a href="{{ url_for('main.registo') }}">Regista-te aqui</a>.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
